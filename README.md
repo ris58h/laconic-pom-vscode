@@ -1,0 +1,1 @@
+The extension can't be implemented with the current API. We can only fold from line to line and without custom text for folded region.
