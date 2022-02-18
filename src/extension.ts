@@ -24,16 +24,14 @@ class PomFoldingRangeProvider implements vscode.FoldingRangeProvider {
 }
 
 class FoldingDescriptor {
-	constructor(readonly start: number, readonly end: number/*, readonly placeholder: string*/){}
+	constructor(readonly start: number, readonly end: number, readonly placeholder?: string){}
 }
 
 function descriptors(text: string): FoldingDescriptor[] {
 	const result: FoldingDescriptor[] = []
 	function addDescriptorIfPossible(tag: Tag, placeholder?: string) {
-		// if (!placeholder) {
-		// 	return
-		// }
-		result.push(new FoldingDescriptor(tag.start, tag.end/*, placeholder*/))
+		console.log(tag.name + ': ' + placeholder)//TODO
+		result.push(new FoldingDescriptor(tag.start, tag.end, placeholder))
 	}
 
 	process(text, {
@@ -77,7 +75,7 @@ function describeParent(parent: Parent): string | undefined {
 	let sb = ''
 	sb += parent.groupId
 	sb = appendPartIfNotNull(sb, parent.artifactId)
-	appendPartIfNotNull(sb, version)
+	sb = appendPartIfNotNull(sb, version)
 	return sb
 }
 
@@ -97,7 +95,7 @@ function describeExtension(extension: Extension): string | undefined {
 	} else {
 		sb += groupId + PART_SEPARATOR + artifactId
 	}
-	appendPartIfNotNull(sb, extension.version);
+	sb = appendPartIfNotNull(sb, extension.version);
 	return sb
 }
 
@@ -107,11 +105,11 @@ function describeDependency(dependency: Dependency): string | undefined {
 	}
 	let sb = ''
 	sb += dependency.groupId
-	appendPartIfNotNull(sb, dependency.artifactId)
-	appendPartIfNotNull(sb, dependency.type)
-	appendPartIfNotNull(sb, dependency.classifier)
-	appendPartIfNotNull(sb, dependency.version)
-	appendPartIfNotNull(sb, dependency.scope)
+	sb = appendPartIfNotNull(sb, dependency.artifactId)
+	sb = appendPartIfNotNull(sb, dependency.type)
+	sb = appendPartIfNotNull(sb, dependency.classifier)
+	sb = appendPartIfNotNull(sb, dependency.version)
+	sb = appendPartIfNotNull(sb, dependency.scope)
 	return sb
 }
 
@@ -121,7 +119,7 @@ function describeExclusion(exclusion: Exclusion): string | undefined {
 	}
 	let sb = ''
 	sb += exclusion.groupId
-	appendPartIfNotNull(sb, exclusion.artifactId)
+	sb = appendPartIfNotNull(sb, exclusion.artifactId)
 	return sb
 }
 
@@ -137,7 +135,7 @@ function describePlugin(plugin: Plugin): string | undefined {
 	} else {
 		sb += groupId + PART_SEPARATOR + artifactId
 	}
-	appendPartIfNotNull(sb, plugin.version)
+	sb = appendPartIfNotNull(sb, plugin.version)
 	return sb
 }
 

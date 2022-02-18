@@ -51,14 +51,15 @@ export interface Plugin extends Tagable, ArtifactCoordinates {}
 export function process(text: string, callback: Callback): void {
     const parser = new MySAXParser()
 	const tagContexts: TagContext[] = []
+	let lastText = ''
 	parser.onopentagstart = function(node: {name: string}) {
-		// console.log('onopentagstart: ', node.name)
-		// console.log('position: ', parser.position)
-		tagContexts.push(new TagContext(node.name, parser.position))
+		const expectedProperties = FOLDABLE_TAGS.get(tagPath(tagContexts, node.name)) || new Set()
+		tagContexts.push(new TagContext(node.name, parser.position, expectedProperties))
+	}
+	parser.ontext = function(text: string) {
+		lastText = text
 	}
 	parser.onclosetag = function(name: string) {
-		// console.log('onclosetag: ', name)
-		// console.log('position: ', parser.position)
 		if (tagContexts.length == 0) {
 			return
 		}
@@ -68,22 +69,69 @@ export function process(text: string, callback: Callback): void {
 		}
 		const isFoldableTag = FOLDABLE_TAGS.has(tagPath(tagContexts, name))
 		if (isFoldableTag) {
-			// console.log('tagContext: ', tagContext)
-            callbackTag(name, tagContext.startPosition, parser.position, callback)
+            callbackTag(name, tagContext.startPosition, parser.position, tagContext.properties, callback)
+		} else if (tagContexts.length > 0) {
+			const parentTagContext = tagContexts[tagContexts.length - 1]
+			if (parentTagContext.expectedProperties.has(name)) {
+				parentTagContext.properties.set(name, lastText)
+			}
 		}
 	}
 	parser.write(text).close()
 }
 
-function callbackTag(name: string, start: number, end: number, callback: Callback) {
+function callbackTag(name: string, start: number, end: number, properties: Map<string, string>, callback: Callback) {
     const tag: Tag = { name, start, end }
     switch (name) {
-        case 'parent': return callback.onParent({tag})
-        case 'profile': return callback.onProfile({tag})
-        case 'extension': return callback.onExtension({tag})
-        case 'dependency': return callback.onDependency({tag})
-        case 'exclusion': return callback.onExclusion({tag})
-        case 'plugin': return callback.onPlugin({tag})
+        case 'parent':
+			const parent: Parent = {
+				tag,
+				groupId: properties.get('groupId'),
+				artifactId: properties.get('artifactId'),
+				version: properties.get('version'),
+			}
+			return callback.onParent(parent)
+        case 'profile':
+			const profile: Profile = {
+				tag,
+				id: properties.get('id')
+			}
+			return callback.onProfile(profile)
+        case 'extension':
+			const extension: Extension = {
+				tag,
+				groupId: properties.get('groupId'),
+				artifactId: properties.get('artifactId'),
+				version: properties.get('version'),
+			}
+			return callback.onExtension(extension)
+        case 'dependency':
+			const dependency: Dependency = {
+				tag,
+				groupId: properties.get('groupId'),
+				artifactId: properties.get('artifactId'),
+				version: properties.get('version'),
+				type: properties.get('type'),
+				classifier: properties.get('classifier'),
+				scope: properties.get('scope'),
+			}
+			return callback.onDependency(dependency)
+        case 'exclusion':
+			const exclusion: Exclusion = {
+				tag,
+				groupId: properties.get('groupId'),
+				artifactId: properties.get('artifactId'),
+				version: properties.get('version'),
+			}
+			return callback.onExclusion(exclusion)
+        case 'plugin':
+			const plugin: Plugin = {
+				tag,
+				groupId: properties.get('groupId'),
+				artifactId: properties.get('artifactId'),
+				version: properties.get('version'),
+			}
+			return callback.onPlugin(plugin)
     }
 }
 
@@ -99,6 +147,8 @@ class TagContext {
     constructor(
         readonly name: string,
         readonly startPosition: number,
+		readonly expectedProperties: Set<string>,
+		readonly properties: Map<string, string> = new Map()
     ){}
 }
 
@@ -106,32 +156,35 @@ function tagPath(tagContexts: TagContext[], name: string) {
     return tagContexts.map(tagContext => tagContext.name).join('/') + '/' + name
 }
 
-const FOLDABLE_TAGS: Set<string> = new Set()
+const ARTIFACT_COORDINATES_PROPERTIES = new Set(['groupId', 'artifactId', 'version'])
+const PROFILE_PROPERTIES = new Set(['id'])
+const DEPENDENCY_PROPERTIES = new Set([ ...ARTIFACT_COORDINATES_PROPERTIES, 'type', 'classifier', 'scope' ])
+const FOLDABLE_TAGS: Map<string, Set<string>> = new Map()
 addProjectFoldableTags(FOLDABLE_TAGS)
 
-function addProjectFoldableTags(tags: Set<string>) {
+function addProjectFoldableTags(tags: Map<string, Set<string>>) {
 	const prefix = 'project'
 
-	tags.add(prefix + '/parent')
+	tags.set(prefix + '/parent', ARTIFACT_COORDINATES_PROPERTIES)
 	addModelBaseFoldableTags(tags, prefix)
-	tags.add(prefix + '/profiles/profile')
+	tags.set(prefix + '/profiles/profile', PROFILE_PROPERTIES)
 	addModelBaseFoldableTags(tags, prefix + '/profiles/profile')
-	tags.add(prefix + '/build/extensions/extension')
+	tags.set(prefix + '/build/extensions/extension', ARTIFACT_COORDINATES_PROPERTIES)
 }
 
-function addModelBaseFoldableTags(tags: Set<string>, prefix: string) {
+function addModelBaseFoldableTags(tags: Map<string, Set<string>>, prefix: string) {
 	addDependenciesFoldableTags(tags, prefix)
 	addDependenciesFoldableTags(tags, prefix + '/dependencyManagement')
 	addPluginsFoldableTags(tags, prefix + '/build')
 	addPluginsFoldableTags(tags, prefix + '/build/pluginManagement')
 }
 
-function addDependenciesFoldableTags(tags: Set<string>, prefix: string) {
-	tags.add(prefix + '/dependencies/dependency')
-	tags.add(prefix + '/dependencies/dependency/exclusions/exclusion')
+function addDependenciesFoldableTags(tags: Map<string, Set<string>>, prefix: string) {
+	tags.set(prefix + '/dependencies/dependency', DEPENDENCY_PROPERTIES)
+	tags.set(prefix + '/dependencies/dependency/exclusions/exclusion', ARTIFACT_COORDINATES_PROPERTIES)
 }
 
-function addPluginsFoldableTags(tags: Set<string>, prefix: string) {
-	tags.add(prefix + '/plugins/plugin')
+function addPluginsFoldableTags(tags: Map<string, Set<string>>, prefix: string) {
+	tags.set(prefix + '/plugins/plugin', ARTIFACT_COORDINATES_PROPERTIES)
 	addDependenciesFoldableTags(tags, prefix + '/plugins/plugin')
 }
