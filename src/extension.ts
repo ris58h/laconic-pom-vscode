@@ -36,14 +36,41 @@ class MySAXParser extends SAXParser {
     }
 }
 
-const FOLDABLE_TAG_PROPERTIES: Map<string, Set<string>> = new Map()
-FOLDABLE_TAG_PROPERTIES.set('project/parent', new Set(['groupId', 'artifactId', 'version']))
+//TODO refactor the code below
+const FOLDABLE_TAGS: Set<string> = new Set()
+addProjectFoldableTags(FOLDABLE_TAGS)
+
+function addProjectFoldableTags(tags: Set<string>) {
+	const prefix = 'project'
+
+	tags.add(prefix + '/parent')
+	addModelBaseFoldableTags(tags, prefix)
+	tags.add(prefix + '/profiles/profile')
+	addModelBaseFoldableTags(tags, prefix + '/profiles/profile')
+	tags.add(prefix + '/build/extensions/extension')
+}
+
+function addModelBaseFoldableTags(tags: Set<string>, prefix: string) {
+	addDependenciesFoldableTags(tags, prefix)
+	addDependenciesFoldableTags(tags, prefix + '/dependencyManagement')
+	addPluginsFoldableTags(tags, prefix + '/build')
+	addPluginsFoldableTags(tags, prefix + '/build/pluginManagement')
+}
+
+function addDependenciesFoldableTags(tags: Set<string>, prefix: string) {
+	tags.add(prefix + '/dependencies/dependency')
+	tags.add(prefix + '/dependencies/dependency/exclusions/exclusion')
+}
+
+function addPluginsFoldableTags(tags: Set<string>, prefix: string) {
+	tags.add(prefix + '/plugins/plugin')
+	addDependenciesFoldableTags(tags, prefix + '/plugins/plugin')
+}
 
 class TagContext {
 	constructor(
 		readonly name: string,
 		readonly startPosition: number,
-		readonly properties: Map<string, string> = new Map(),
 	){}
 }
 
@@ -51,14 +78,10 @@ function extractRegions(text: string): Region[] {
 	const result: Region[] = []
 	const parser = new MySAXParser()
 	const tagContexts: TagContext[] = []
-	let lastText = ''
 	parser.onopentagstart = function(node: {name: string}) {
 		// console.log('onopentagstart: ', node.name)
 		// console.log('position: ', parser.position)
 		tagContexts.push(new TagContext(node.name, parser.position))
-	}
-	parser.ontext = function(text: string) {
-		lastText = text
 	}
 	parser.onclosetag = function(name: string) {
 		// console.log('onclosetag: ', name)
@@ -70,24 +93,16 @@ function extractRegions(text: string): Region[] {
 		if (tagContext.name != name) {
 			return
 		}
-		const isFoldableTag = FOLDABLE_TAG_PROPERTIES.has(tagPath(tagContexts, tagContext.name))
+		const isFoldableTag = FOLDABLE_TAGS.has(tagPath(tagContexts, tagContext.name))
 		if (isFoldableTag) {
 			result.push(new Region(tagContext.startPosition, parser.position))
 			console.log('tagContext: ', tagContext)
-			console.log('properties: ', tagContext.properties)
-		} else if (tagContexts.length > 0) {
-			const parentExpectedProps = FOLDABLE_TAG_PROPERTIES.get(tagPath(tagContexts))
-			if (parentExpectedProps && parentExpectedProps.has(tagContext.name)) {
-				const parentTagContext = tagContexts[tagContexts.length - 1]
-				parentTagContext.properties.set(tagContext.name, lastText)
-			}
 		}
 	}
 	parser.write(text).close()
 	return result
 }
 
-function tagPath(tagContexts: TagContext[], name?: string) {
-	const path = tagContexts.map(tagContext => tagContext.name).join('/')
-	return name ? (path + '/' + name) : path
+function tagPath(tagContexts: TagContext[], name: string) {
+	return tagContexts.map(tagContext => tagContext.name).join('/') + '/' + name
 }
