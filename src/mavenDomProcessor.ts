@@ -73,65 +73,23 @@ export function process(text: string, callback: Callback): void {
 		} else if (tagContexts.length > 0) {
 			const parentTagContext = tagContexts[tagContexts.length - 1]
 			if (parentTagContext.expectedProperties.has(name)) {
-				parentTagContext.properties.set(name, lastText)
+				parentTagContext.properties[name] = lastText
 			}
 		}
 	}
 	parser.write(text).close()
 }
 
-function callbackTag(name: string, start: number, end: number, properties: Map<string, string>, callback: Callback) {
+function callbackTag(name: string, start: number, end: number, properties: Record<string, string>, callback: Callback) {
     const tag: Tag = { name, start, end }
+	const tagable: Tagable = { tag, ...properties }
     switch (name) {
-        case 'parent':
-			const parent: Parent = {
-				tag,
-				groupId: properties.get('groupId'),
-				artifactId: properties.get('artifactId'),
-				version: properties.get('version'),
-			}
-			return callback.onParent(parent)
-        case 'profile':
-			const profile: Profile = {
-				tag,
-				id: properties.get('id')
-			}
-			return callback.onProfile(profile)
-        case 'extension':
-			const extension: Extension = {
-				tag,
-				groupId: properties.get('groupId'),
-				artifactId: properties.get('artifactId'),
-				version: properties.get('version'),
-			}
-			return callback.onExtension(extension)
-        case 'dependency':
-			const dependency: Dependency = {
-				tag,
-				groupId: properties.get('groupId'),
-				artifactId: properties.get('artifactId'),
-				version: properties.get('version'),
-				type: properties.get('type'),
-				classifier: properties.get('classifier'),
-				scope: properties.get('scope'),
-			}
-			return callback.onDependency(dependency)
-        case 'exclusion':
-			const exclusion: Exclusion = {
-				tag,
-				groupId: properties.get('groupId'),
-				artifactId: properties.get('artifactId'),
-				version: properties.get('version'),
-			}
-			return callback.onExclusion(exclusion)
-        case 'plugin':
-			const plugin: Plugin = {
-				tag,
-				groupId: properties.get('groupId'),
-				artifactId: properties.get('artifactId'),
-				version: properties.get('version'),
-			}
-			return callback.onPlugin(plugin)
+        case 'parent': return callback.onParent(tagable)
+        case 'profile': return callback.onProfile(tagable)
+        case 'extension': return callback.onExtension(tagable)
+        case 'dependency': return callback.onDependency(tagable)
+        case 'exclusion': return callback.onExclusion(tagable)
+        case 'plugin': return callback.onPlugin(tagable)
     }
 }
 
@@ -148,7 +106,7 @@ class TagContext {
         readonly name: string,
         readonly startPosition: number,
 		readonly expectedProperties: Set<string>,
-		readonly properties: Map<string, string> = new Map()
+		readonly properties: Record<string, string> = {}
     ){}
 }
 
