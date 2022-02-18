@@ -30,9 +30,7 @@ export interface ArtifactCoordinates {
     readonly version?: string
 }
 
-export interface Parent extends Tagable, ArtifactCoordinates {
-    readonly relativePath?: string
-}
+export interface Parent extends Tagable, ArtifactCoordinates {}
 
 export interface Profile extends Tagable {
     readonly id?: string
