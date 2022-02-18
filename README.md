@@ -1,1 +1,1 @@
-The extension can't be implemented with the current API. We can only fold from line to line and without custom text for folded region.
+![limited](https://user-images.githubusercontent.com/511242/154714446-a80d5b50-f3c7-4c4d-994e-094a8a688c92.jpg)
