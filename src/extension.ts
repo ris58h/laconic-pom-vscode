@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { ArtifactCoordinates, Dependency, Exclusion, Extension, Parent, Plugin, process, Profile, Tag, Tagable } from './mavenDomProcessor'
+import { ArtifactCoordinates, Dependency, Exclusion, Extension, Parent, Plugin, process, Profile, Tag } from './mavenDomProcessor'
 
 const POM_SELECTOR = { language: 'xml', pattern: '**/pom.xml' }
 
@@ -30,7 +30,7 @@ class FoldingDescriptor {
 function descriptors(text: string): FoldingDescriptor[] {
 	const result: FoldingDescriptor[] = []
 	function addDescriptorIfPossible(tag: Tag, placeholder?: string) {
-		console.log(tag.name + ': ' + placeholder)//TODO
+		// console.log(tag.name + ': ' + placeholder)// TODO
 		result.push(new FoldingDescriptor(tag.start, tag.end, placeholder))
 	}
 
