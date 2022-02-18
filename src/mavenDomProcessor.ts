@@ -53,8 +53,12 @@ export function process(text: string, callback: Callback): void {
 	const tagContexts: TagContext[] = []
 	let lastText = ''
 	parser.onopentagstart = function(node: {name: string}) {
-		const expectedProperties = FOLDABLE_TAGS.get(tagPath(tagContexts, node.name)) || new Set()
-		tagContexts.push(new TagContext(node.name, parser.position, expectedProperties))
+		const expectedProperties = FOLDABLE_TAGS.get(tagPath(tagContexts, node.name))
+		if (expectedProperties) {
+			tagContexts.push(new FoldableTagContext(node.name, parser.position, expectedProperties))
+		} else {
+			tagContexts.push(new TagContext(node.name, parser.position))
+		}
 	}
 	parser.ontext = function(text: string) {
 		lastText = text
@@ -67,12 +71,11 @@ export function process(text: string, callback: Callback): void {
 		if (tagContext.name != name) {
 			return
 		}
-		const isFoldableTag = FOLDABLE_TAGS.has(tagPath(tagContexts, name))
-		if (isFoldableTag) {
+		if (tagContext instanceof FoldableTagContext) {
             callbackTag(name, tagContext.startPosition, parser.position, tagContext.properties, callback)
 		} else if (tagContexts.length > 0) {
 			const parentTagContext = tagContexts[tagContexts.length - 1]
-			if (parentTagContext.expectedProperties.has(name)) {
+			if (parentTagContext instanceof FoldableTagContext && parentTagContext.expectedProperties.has(name)) {
 				parentTagContext.properties[name] = lastText
 			}
 		}
@@ -104,10 +107,19 @@ class MySAXParser extends SAXParser {
 class TagContext {
     constructor(
         readonly name: string,
+        readonly startPosition: number
+    ){}
+}
+
+class FoldableTagContext extends TagContext {
+	constructor(
+        readonly name: string,
         readonly startPosition: number,
 		readonly expectedProperties: Set<string>,
 		readonly properties: Record<string, string> = {}
-    ){}
+    ){
+		super(name, startPosition)
+	}
 }
 
 function tagPath(tagContexts: TagContext[], name: string) {
