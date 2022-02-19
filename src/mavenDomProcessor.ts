@@ -53,11 +53,13 @@ export function process(text: string, callback: Callback): void {
 	const tagContexts: TagContext[] = []
 	let lastText = ''
 	parser.onopentagstart = function(node: {name: string}) {
-		const expectedProperties = FOLDABLE_TAGS.get(tagPath(tagContexts, node.name))
+		const name = node.name
+		const path = tagContexts.length > 0 ? tagContexts[tagContexts.length - 1].path + '/' + name : name
+		const expectedProperties = FOLDABLE_TAGS.get(path)
 		if (expectedProperties) {
-			tagContexts.push(new FoldableTagContext(node.name, parser.position, expectedProperties))
+			tagContexts.push(new FoldableTagContext(name, path, parser.position, expectedProperties))
 		} else {
-			tagContexts.push(new TagContext(node.name, parser.position))
+			tagContexts.push(new TagContext(name, path, parser.position))
 		}
 	}
 	parser.ontext = function(text: string) {
@@ -107,6 +109,7 @@ class MySAXParser extends SAXParser {
 class TagContext {
     constructor(
         readonly name: string,
+		readonly path: string,
         readonly startPosition: number
     ){}
 }
@@ -114,16 +117,13 @@ class TagContext {
 class FoldableTagContext extends TagContext {
 	constructor(
         readonly name: string,
+		readonly path: string,
         readonly startPosition: number,
 		readonly expectedProperties: Set<string>,
 		readonly properties: Record<string, string> = {}
     ){
-		super(name, startPosition)
+		super(name, path, startPosition)
 	}
-}
-
-function tagPath(tagContexts: TagContext[], name: string) {
-    return tagContexts.map(tagContext => tagContext.name).join('/') + '/' + name
 }
 
 const ARTIFACT_COORDINATES_PROPERTIES = new Set(['groupId', 'artifactId', 'version'])
