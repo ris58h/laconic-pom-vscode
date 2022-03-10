@@ -11,7 +11,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 class PomFoldingRangeProvider implements vscode.FoldingRangeProvider {
 	provideFoldingRanges(document: vscode.TextDocument, context: vscode.FoldingContext, token: vscode.CancellationToken): vscode.ProviderResult<vscode.FoldingRange[]> {
-		//TODO We can use text decorations: decorate start line when region is folded.
+		//TODO We could use text decorations, but there is no way to detect what regions where folded.
 		//    Decorations are used by https://github.com/hoovercj/vscode-power-mode
 		//    MS sample https://github.com/microsoft/vscode-extension-samples/tree/main/decorator-sample
 		const text = document.getText()
@@ -30,7 +30,6 @@ class FoldingDescriptor {
 function descriptors(text: string): FoldingDescriptor[] {
 	const result: FoldingDescriptor[] = []
 	function addDescriptorIfPossible(tag: Tag, placeholder?: string) {
-		// console.log(tag.name + ': ' + placeholder)// TODO
 		result.push(new FoldingDescriptor(tag.start, tag.end, placeholder))
 	}
 
